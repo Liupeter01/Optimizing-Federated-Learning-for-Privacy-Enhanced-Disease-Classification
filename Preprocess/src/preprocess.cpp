@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <memory>
+#include <opencv2/core/mat.hpp>
 #include <preprocess.hpp>
 #include <tbb/parallel_for.h>
 
@@ -26,6 +27,25 @@ void preprocess::NIHPreprocess::createNewDir(const std::string &target) {
 }
 
 cv::Mat &preprocess::NIHPreprocess::imageNormalized(cv::Mat &origin) {
+
+  cv::Mat resized, floatImg, normalized, displayable;
+
+  // Resize to match ResNet input size
+  cv::resize(origin, resized, cv::Size(IMAGE_SIZE, IMAGE_SIZE));
+
+   // Convert to floating-point representation
+   resized.convertTo(floatImg, CV_32FC3);
+
+   cv::Mat meanImg, stdImg;
+   cv::resize(meanMat, meanImg, floatImg.size());
+   cv::resize(stdMat, stdImg, floatImg.size());
+
+   // Normalize the image using (image - mean) / std
+   cv::subtract(floatImg, meanImg, normalized);
+   cv::divide(normalized, stdImg, normalized);
+
+ origin = normalized;
+
   return origin;
 }
 
@@ -48,45 +68,22 @@ void preprocess::NIHPreprocess::write2NewTarget(const std::string &target) {
 
           for (const auto &patient : records) {
             std::string srcPath = origin_dir + "/" + patient.imageIndex;
+            std::string destPath = savePath + "/" + patient.imageIndex;
 
-            // std::cout << srcPath << "\n";
+            cv::Mat origin{};
 
-            if (std::find(m_originImagesList.begin(), m_originImagesList.end(),
-                          patient.imageIndex) != m_originImagesList.end()) {
-
-              std::string destPath = savePath + "/" + patient.imageIndex;
-
-              std::filesystem::copy_file(
-                  srcPath, destPath,
-                  std::filesystem::copy_options::overwrite_existing);
+            if (auto oriOpt = loader->loadImage(srcPath); oriOpt) {
+              origin = oriOpt.value();
+              origin = this->imageNormalized(oriOpt.value());
             }
+
+            if (origin.empty()) {
+              continue;
+            }
+
+            loader->writeImage(origin, destPath);
           }
         }
-      });
-
-    //   for (auto it = groupedMapping.begin(); it != groupedMapping.end(); ++it) {
-    //     const std::string &splitName = it->first;
-    //     const auto &records = it->second;
-    
-    //     // Create new subdirectory
-    //     std::string savePath = main_dir + "/" + splitName;
-    //     std::filesystem::create_directories(savePath);
-    
-    //     for (const auto &patient : records) {
-    //         std::string srcPath = origin_dir + "/" + patient.imageIndex;
-    
-    //         // std::cout << srcPath << "\n";
-    
-    //         if (std::find(m_originImagesList.begin(), m_originImagesList.end(),
-    //                       patient.imageIndex) != m_originImagesList.end()) {
-    
-    //             std::string destPath = savePath + "/" + patient.imageIndex;
-    
-    //             std::filesystem::copy_file(
-    //                 srcPath, destPath,
-    //                 std::filesystem::copy_options::overwrite_existing);
-    //         }
-    //     }
-    // }
-    
+      },
+      ap);
 }
