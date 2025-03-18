@@ -1,5 +1,6 @@
 #include <fileLoader.hpp>
 #include <filesystem>
+#include <optional>
 
 preprocess::ImageLoader::ImageLoader(const std::string &directory,
                                      const std::vector<std::string> &extensions)
@@ -28,6 +29,26 @@ tbb::concurrent_vector<std::string> preprocess::ImageLoader::getImagePaths() {
   }
 
   return paths;
+}
+
+std::optional<cv::Mat>
+preprocess::ImageLoader::loadImage(const std::string &path) {
+
+  auto res = cv::imread(path, cv::IMREAD_COLOR);
+  if (res.empty()) {
+    // std::cout << "load image at " << path << " error!\n";
+    return std::nullopt;
+  }
+  return res;
+}
+
+bool preprocess::ImageLoader::writeImage(const cv::Mat &data,
+                                         const std::string &path) {
+  if (!cv::imwrite(path, data)) {
+    std::cerr << "Error writing image: " << path << std::endl;
+    return false;
+  }
+  return true;
 }
 
 tbb::concurrent_vector<cv::Mat> preprocess::ImageLoader::loadImages() {
