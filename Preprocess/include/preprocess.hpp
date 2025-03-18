@@ -28,10 +28,10 @@ protected:
 public:
   // Constants for ResNet preprocessing
   static constexpr std::size_t IMAGE_SIZE = 224; // ResNet expects 224x224
-  const cv::Scalar RESNET_MEAN = cv::Scalar(0.485f, 0.456f, 0.406f);
-  const cv::Scalar RESNET_STD = cv::Scalar(0.229f, 0.224f, 0.225f);
-  const cv::Mat meanMat = cv::Mat(1,1, CV_32FC3, RESNET_MEAN);
-  const cv::Mat stdMat = cv::Mat(1,1, CV_32FC3, RESNET_STD);
+  const cv::Scalar RESNET_MEAN = cv::Scalar(0.727, 0.727, 0.727);
+  const cv::Scalar RESNET_STD = cv::Scalar(0.290, 0.290, 0.290);
+  const cv::Mat meanMat = cv::Mat(1, 1, CV_32FC3, RESNET_MEAN);
+  const cv::Mat stdMat = cv::Mat(1, 1, CV_32FC3, RESNET_STD);
   static constexpr std::size_t size = 224;
 
 private:

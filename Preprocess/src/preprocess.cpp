@@ -33,18 +33,14 @@ cv::Mat &preprocess::NIHPreprocess::imageNormalized(cv::Mat &origin) {
   // Resize to match ResNet input size
   cv::resize(origin, resized, cv::Size(IMAGE_SIZE, IMAGE_SIZE));
 
-   // Convert to floating-point representation
-   resized.convertTo(floatImg, CV_32FC3);
+  // Convert to floating-point representation
+  resized.convertTo(floatImg, CV_32FC3);
+  origin = floatImg;
 
-   cv::Mat meanImg, stdImg;
-   cv::resize(meanMat, meanImg, floatImg.size());
-   cv::resize(stdMat, stdImg, floatImg.size());
-
-   // Normalize the image using (image - mean) / std
-   cv::subtract(floatImg, meanImg, normalized);
-   cv::divide(normalized, stdImg, normalized);
-
- origin = normalized;
+  // Normalize the image using (image - mean) / std
+  // cv::subtract(floatImg, RESNET_MEAN, normalized);
+  // cv::divide(normalized, RESNET_STD, normalized);
+  // origin = normalized;
 
   return origin;
 }
