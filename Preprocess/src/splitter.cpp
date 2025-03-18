@@ -127,8 +127,10 @@ void preprocess::DatasetSplitter::groupByPatientID() {
                         auto id = m_rawData[i].patientID;
 
                         // record those id for shuffle
-                        patientIDs.push_back(id);
-
+                        if (!uniquePatientIDs.count(id)) {
+                          uniquePatientIDs[id] = 1;
+                          patientIDs.push_back(id);
+                        }
                         // Move data to categoryGroups
                         categoryGroups[id].push_back(std::move(m_rawData[i]));
                       }
@@ -165,18 +167,17 @@ preprocess::DatasetSplitter::assignPatients2Group() {
 
   auto assignToGroup = [&](auto begin, auto end, const std::string &splitName) {
     for (auto it = begin; it != end; ++it) {
-        const std::string &patientID = *it;
+      const std::string &patientID = *it;
 
-        // Ensure the patient exists in categoryGroups
-        auto found = categoryGroups.find(patientID);
-        if (found != categoryGroups.end()) {
-            // Copy the vector safely instead of moving
-            splits[splitName].insert(splits[splitName].end(), 
-                                     found->second.begin(), found->second.end());
-        }
+      // Ensure the patient exists in categoryGroups
+      auto found = categoryGroups.find(patientID);
+      if (found != categoryGroups.end()) {
+        // Copy the vector safely instead of moving
+        splits[splitName].insert(splits[splitName].end(), found->second.begin(),
+                                 found->second.end());
+      }
     }
-};
-
+  };
 
   assignToGroup(patientIDs.begin(), patientIDs.begin() + split1, "part_30a");
   assignToGroup(patientIDs.begin() + split1, patientIDs.begin() + split2,

@@ -5,6 +5,7 @@
 #include <string>
 #include <tbb/concurrent_unordered_map.h>
 #include <tbb/concurrent_vector.h>
+#include <unordered_map>
 namespace preprocess {
 
 enum class Gender { Male, Female, Unknown };
@@ -61,6 +62,8 @@ protected:
   void randomShufflePatientID();
 
 private:
+  tbb::concurrent_unordered_map<std::string, int> uniquePatientIDs;
+
   /*Raw data from CSV file*/
   std::string m_csv;
 
