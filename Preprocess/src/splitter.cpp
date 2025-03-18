@@ -165,13 +165,18 @@ preprocess::DatasetSplitter::assignPatients2Group() {
 
   auto assignToGroup = [&](auto begin, auto end, const std::string &splitName) {
     for (auto it = begin; it != end; ++it) {
-      const std::string &patientID = *it;
-      splits[splitName].insert(
-          splits[splitName].end(),
-          std::make_move_iterator(categoryGroups[patientID].begin()),
-          std::make_move_iterator(categoryGroups[patientID].end()));
+        const std::string &patientID = *it;
+
+        // Ensure the patient exists in categoryGroups
+        auto found = categoryGroups.find(patientID);
+        if (found != categoryGroups.end()) {
+            // Copy the vector safely instead of moving
+            splits[splitName].insert(splits[splitName].end(), 
+                                     found->second.begin(), found->second.end());
+        }
     }
-  };
+};
+
 
   assignToGroup(patientIDs.begin(), patientIDs.begin() + split1, "part_30a");
   assignToGroup(patientIDs.begin() + split1, patientIDs.begin() + split2,
