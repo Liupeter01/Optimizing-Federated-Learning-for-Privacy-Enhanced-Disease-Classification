@@ -1,4 +1,5 @@
 #pragma once
+#include <valarray>
 #ifndef _SPLITTER_HPP_
 #define _SPLITTER_HPP_
 #include <string>
@@ -43,22 +44,34 @@ struct RawPatientData {
 
 class DatasetSplitter {
 public:
+  using GroupMap = std::unordered_map<
+      /*dir_name =*/std::string,
+      /*all data in one single group =*/std::vector<RawPatientData>>;
+
+public:
   DatasetSplitter(const std::string &csv);
 
 public:
   tbb::concurrent_vector<RawPatientData> loadCSV(const std::string &csvFile);
   void groupByPatientID();
+
+  [[nodiscard]] GroupMap assignPatients2Group();
+
+protected:
   void randomShufflePatientID();
 
 private:
   /*Raw data from CSV file*/
   std::string m_csv;
+
+  // raw data is going to be removed after grouped!!!
   tbb::concurrent_vector<preprocess::RawPatientData> m_rawData;
 
   /*group by patientid*/
   tbb::concurrent_vector<std::string> patientIDs;
   tbb::concurrent_unordered_map<
-      /*paitient id*/ std::string, tbb::concurrent_vector<RawPatientData>>
+      /*paitient id = */ std::string,
+      /*image name = */ tbb::concurrent_vector<RawPatientData>>
       categoryGroups;
 };
 } // namespace preprocess

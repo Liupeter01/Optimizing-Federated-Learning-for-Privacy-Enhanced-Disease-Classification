@@ -1,3 +1,4 @@
+#include <_stdlib.h>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -133,6 +134,9 @@ void preprocess::DatasetSplitter::groupByPatientID() {
                       }
                     });
 
+  // clean unnessary mem
+  m_rawData.clear();
+
   std::cout << "Grouped " << categoryGroups.size() << " unique patients."
             << std::endl;
 }
@@ -142,4 +146,39 @@ void preprocess::DatasetSplitter::randomShufflePatientID() {
   std::random_device rd;
   std::mt19937 rng(rd());
   std::shuffle(patientIDs.begin(), patientIDs.end(), rng);
+}
+
+preprocess::DatasetSplitter::GroupMap
+preprocess::DatasetSplitter::assignPatients2Group() {
+
+  preprocess::DatasetSplitter::GroupMap splits = {
+      {"part_30a", {}}, {"part_30b", {}}, {"part_30c", {}}, {"part_10d", {}}};
+
+  randomShufflePatientID();
+
+  // Compute Split Sizes
+  size_t totalPatients = patientIDs.size();
+  size_t split1 = totalPatients * 0.3;
+  size_t split2 = split1 + totalPatients * 0.3;
+  size_t split3 = split2 + totalPatients * 0.3;
+  size_t split4 = totalPatients; // Remaining 10%
+
+  auto assignToGroup = [&](auto begin, auto end, const std::string &splitName) {
+    for (auto it = begin; it != end; ++it) {
+      const std::string &patientID = *it;
+      splits[splitName].insert(
+          splits[splitName].end(),
+          std::make_move_iterator(categoryGroups[patientID].begin()),
+          std::make_move_iterator(categoryGroups[patientID].end()));
+    }
+  };
+
+  assignToGroup(patientIDs.begin(), patientIDs.begin() + split1, "part_30a");
+  assignToGroup(patientIDs.begin() + split1, patientIDs.begin() + split2,
+                "part_30b");
+  assignToGroup(patientIDs.begin() + split2, patientIDs.begin() + split3,
+                "part_30c");
+  assignToGroup(patientIDs.begin() + split3, patientIDs.end(), "part_10d");
+
+  return splits;
 }
