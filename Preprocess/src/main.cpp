@@ -9,8 +9,7 @@ int main() {
   nih.loadOriginImages();
   nih.shuffleRandomByID();
 
-  // generate new images
-  nih.createNewDir(CONFIG_HOME "split-images");
-
+  // generate new images dir and write them to new directory
+  nih.write2NewTarget(CONFIG_HOME "split-images");
   return 0;
 }
