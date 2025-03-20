@@ -3,7 +3,7 @@ syntax = "proto3";
 package mlvector;
 
 service MLService {
-  rpc ProcessVector(VectorRequest) returns (VectorResponse);
+  rpc FederatedAveraging(stream VectorRequest) returns (stream VectorResponse);
 }
 
 message VectorRequest {
@@ -11,5 +11,5 @@ message VectorRequest {
 }
 
 message VectorResponse {
-  string message = 1;
+  repeated float merged_vector = 1;
 }
