@@ -34,8 +34,8 @@ class MLServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.ProcessVector = channel.unary_unary(
-                '/mlvector.MLService/ProcessVector',
+        self.FederatedAveraging = channel.stream_stream(
+                '/mlvector.MLService/FederatedAveraging',
                 request_serializer=ml__vector__pb2.VectorRequest.SerializeToString,
                 response_deserializer=ml__vector__pb2.VectorResponse.FromString,
                 _registered_method=True)
@@ -44,7 +44,7 @@ class MLServiceStub(object):
 class MLServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def ProcessVector(self, request, context):
+    def FederatedAveraging(self, request_iterator, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -53,8 +53,8 @@ class MLServiceServicer(object):
 
 def add_MLServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'ProcessVector': grpc.unary_unary_rpc_method_handler(
-                    servicer.ProcessVector,
+            'FederatedAveraging': grpc.stream_stream_rpc_method_handler(
+                    servicer.FederatedAveraging,
                     request_deserializer=ml__vector__pb2.VectorRequest.FromString,
                     response_serializer=ml__vector__pb2.VectorResponse.SerializeToString,
             ),
@@ -70,7 +70,7 @@ class MLService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def ProcessVector(request,
+    def FederatedAveraging(request_iterator,
             target,
             options=(),
             channel_credentials=None,
@@ -80,10 +80,10 @@ class MLService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
+        return grpc.experimental.stream_stream(
+            request_iterator,
             target,
-            '/mlvector.MLService/ProcessVector',
+            '/mlvector.MLService/FederatedAveraging',
             ml__vector__pb2.VectorRequest.SerializeToString,
             ml__vector__pb2.VectorResponse.FromString,
             options,

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fml_vector.proto\x12\x08mlvector\"\x1f\n\rVectorRequest\x12\x0e\n\x06vector\x18\x01 \x03(\x02\"!\n\x0eVectorResponse\x12\x0f\n\x07message\x18\x01 \x01(\t2O\n\tMLService\x12\x42\n\rProcessVector\x12\x17.mlvector.VectorRequest\x1a\x18.mlvector.VectorResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fml_vector.proto\x12\x08mlvector\"\x1f\n\rVectorRequest\x12\x0e\n\x06vector\x18\x01 \x03(\x02\"\'\n\x0eVectorResponse\x12\x15\n\rmerged_vector\x18\x01 \x03(\x02\x32X\n\tMLService\x12K\n\x12\x46\x65\x64\x65ratedAveraging\x12\x17.mlvector.VectorRequest\x1a\x18.mlvector.VectorResponse(\x01\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,7 +34,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_VECTORREQUEST']._serialized_start=29
   _globals['_VECTORREQUEST']._serialized_end=60
   _globals['_VECTORRESPONSE']._serialized_start=62
-  _globals['_VECTORRESPONSE']._serialized_end=95
-  _globals['_MLSERVICE']._serialized_start=97
-  _globals['_MLSERVICE']._serialized_end=176
+  _globals['_VECTORRESPONSE']._serialized_end=101
+  _globals['_MLSERVICE']._serialized_start=103
+  _globals['_MLSERVICE']._serialized_end=191
 # @@protoc_insertion_point(module_scope)
