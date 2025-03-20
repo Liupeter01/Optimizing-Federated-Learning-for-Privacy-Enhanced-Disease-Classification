@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package mlvector;
+
+service MLService {
+  rpc ProcessVector(VectorRequest) returns (VectorResponse);
+}
+
+message VectorRequest {
+  repeated float vector = 1;
+}
+
+message VectorResponse {
+  string message = 1;
+}
