@@ -4,18 +4,19 @@ import ml_vector_pb2_grpc
 from concurrent import futures
 import time
 import threading
-from interceptor import ClientCountInterceptor 
+from interceptor import ClientCountInterceptor
 
 # Thread Safe global variable for recording client connections
 client_count = 0
 client_count_lock = threading.Lock()
 
+
 class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
     def __init__(self):
-        self.client_vectors = []  
-        self.lock = threading.Lock()  
-        self.client_streams = []  
-    
+        self.client_vectors = []
+        self.lock = threading.Lock()
+        self.client_streams = []
+
     def FederatedAveraging(self, request_iterator, context):
         # All Connected Client
         with self.lock:
@@ -25,7 +26,8 @@ class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
 
         for request in request_iterator:
             with self.lock:
-                self.client_vectors.append(request.vector)  # Store Their FL Vector
+                self.client_vectors.append(
+                    request.vector)  # Store Their FL Vector
 
             print(f"Received vector from client: {request.vector}")
 
@@ -50,13 +52,15 @@ class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
 
         return
 
+
 def serve():
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10),
         interceptors=[ClientCountInterceptor()]
     )
 
-    ml_vector_pb2_grpc.add_MLServiceServicer_to_server(MLServiceServicer(), server)
+    ml_vector_pb2_grpc.add_MLServiceServicer_to_server(
+        MLServiceServicer(), server)
     server.add_insecure_port("[::]:50051")
     server.start()
     print("Server started on port 50051")
@@ -65,6 +69,7 @@ def serve():
             time.sleep(86400)  # Keep server running
     except KeyboardInterrupt:
         server.stop(0)
+
 
 if __name__ == "__main__":
     serve()
