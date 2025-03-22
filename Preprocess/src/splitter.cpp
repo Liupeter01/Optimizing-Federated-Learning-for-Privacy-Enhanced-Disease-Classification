@@ -66,36 +66,23 @@ preprocess::DatasetSplitter::loadCSV(const std::string &csvFile) {
                         std::getline(ss, findingLabels, ',');
 
                         // Read numeric values safely
-                        if (!(ss >> followup))
-                          followup = 0;
-                        if (ss.peek() == ',')
-                          ss.ignore();
-                        if (!(ss >> patientid))
-                          patientid = 0;
-                        if (ss.peek() == ',')
-                          ss.ignore();
-                        if (!(ss >> age))
-                          age = 0;
-                        if (ss.peek() == ',')
-                          ss.ignore();
+                        if (!(ss >> followup)) followup = 0;
+                        if (ss.peek() == ',') ss.ignore();
+                        if (!(ss >> patientid)) patientid = 0;
+                        if (ss.peek() == ',') ss.ignore();
+                        if (!(ss >> age)) age = 0;
+                        if (ss.peek() == ',') ss.ignore();
 
                         std::getline(ss, genderStr, ',');
                         std::getline(ss, viewPosition, ',');
 
-                        if (!(ss >> width))
-                          width = 0;
-                        if (ss.peek() == ',')
-                          ss.ignore();
-                        if (!(ss >> height))
-                          height = 0;
-                        if (ss.peek() == ',')
-                          ss.ignore();
-                        if (!(ss >> pixelX))
-                          pixelX = 0.0f;
-                        if (ss.peek() == ',')
-                          ss.ignore();
-                        if (!(ss >> pixelY))
-                          pixelY = 0.0f;
+                        if (!(ss >> width)) width = 0;
+                        if (ss.peek() == ',') ss.ignore();
+                        if (!(ss >> height))  height = 0;
+                        if (ss.peek() == ',') ss.ignore();
+                        if (!(ss >> pixelX)) pixelX = 0.0f;
+                        if (ss.peek() == ',') ss.ignore();
+                        if (!(ss >> pixelY)) pixelY = 0.0f;
 
                         // Assign values to struct
                         patient.imageIndex = imageIndex;

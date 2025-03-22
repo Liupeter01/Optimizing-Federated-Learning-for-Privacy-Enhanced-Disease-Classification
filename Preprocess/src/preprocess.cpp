@@ -36,12 +36,6 @@ cv::Mat &preprocess::NIHPreprocess::imageNormalized(cv::Mat &origin) {
   // Convert to floating-point representation
   resized.convertTo(floatImg, CV_32FC3);
   origin = floatImg;
-
-  // Normalize the image using (image - mean) / std
-  // cv::subtract(floatImg, RESNET_MEAN, normalized);
-  // cv::divide(normalized, RESNET_STD, normalized);
-  // origin = normalized;
-
   return origin;
 }
 
@@ -73,10 +67,7 @@ void preprocess::NIHPreprocess::write2NewTarget(const std::string &target) {
               origin = this->imageNormalized(oriOpt.value());
             }
 
-            if (origin.empty()) {
-              continue;
-            }
-
+            if (origin.empty()) continue;
             loader->writeImage(origin, destPath);
           }
         }
