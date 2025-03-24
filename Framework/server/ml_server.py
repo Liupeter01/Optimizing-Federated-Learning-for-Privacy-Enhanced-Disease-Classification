@@ -7,7 +7,7 @@ import time
 import threading
 from interceptor import ClientCountInterceptor
 
-from logic import handle_client_vector, compute_average_vector, should_broadcast, broadcast_result
+from logic import handle_client_vector, compute_average_vector, should_continue, broadcast_result
 
 
 class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
