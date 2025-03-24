@@ -7,66 +7,39 @@ import time
 import threading
 from interceptor import ClientCountInterceptor 
 
-# Thread Safe global variable for recording client connections
-client_count = 0
-client_count_lock = threading.Lock()
+from logic import handle_client_vector, compute_average_vector, should_broadcast, broadcast_result
 
 class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
     def __init__(self):
-        self.client_vectors = []  
-        self.client_queues = []  
-        self.lock = threading.Lock()  
-    
-    # broadcast result to all the clients
-    def broadcast(self, avg_vector):
-        with self.lock:
-            for q in self.client_queues:
-                q.put(avg_vector)
-        print(f"[Server] Broadcasted averaged vector to {len(self.client_queues)} clients.")
-
-    # Client uploads vector to here!
-    def handle_client_vector(self, vector):
-        with self.lock:
-            self.client_vectors.append(vector)
-        print(f"[Server] Received vector: {vector}")
-
-    # Center AI Logic
-    def compute_average_vector(self):
-        with self.lock:
-            if not self.client_vectors:
-                return []
-
-            num_clients = len(self.client_vectors)
-            vector_size = len(self.client_vectors[0])
-            avg_vector = [
-                sum(v[i] for v in self.client_vectors) / num_clients
-                for i in range(vector_size)
-            ]
-
-        print(f"[Server] Aggregated average vector: {avg_vector}")
-        return avg_vector
+        self.client_vectors = []  # Stores all received vectors
+        self.client_queues = []   # One queue per client
+        self.lock = threading.Lock()
 
     def FederatedAveraging(self, request_iterator, context):
         response_queue = queue.Queue()
 
-        # All Connected Client
+        # Register this client's response queue
         with self.lock:
             self.client_queues.append(response_queue)
         print("[Server] Client connected.")
 
-        # Accept connections(Sub Thread)
         def listen_for_requests():
             try:
                 for request in request_iterator:
-                    self.handle_client_vector(request.vector)
-                    avg_vector = self.compute_average_vector()
-                    self.broadcast(avg_vector)
+                    handle_client_vector(request.vector, self.client_vectors, self.lock)
+
+                    with self.lock:
+                        if should_continue(self.client_vectors):
+                            avg_vector = compute_average_vector(self.client_vectors)
+                            broadcast_result(avg_vector, self.client_queues)
+                            self.client_vectors.clear()
+                        else:
+                            print(f"[Server] Waiting for at least 2 vectors (currently {len(self.client_vectors)})")
             except Exception as e:
                 print(f"[Server] Error in request stream: {e}")
 
         threading.Thread(target=listen_for_requests, daemon=True).start()
 
-        # Main Thread
         try:
             while True:
                 merged_vector = response_queue.get()
@@ -83,14 +56,13 @@ def serve():
         futures.ThreadPoolExecutor(max_workers=10),
         interceptors=[ClientCountInterceptor()]
     )
-
     ml_vector_pb2_grpc.add_MLServiceServicer_to_server(MLServiceServicer(), server)
     server.add_insecure_port("[::]:50051")
     server.start()
     print("Server started on port 50051")
     try:
         while True:
-            time.sleep(86400)  # Keep server running
+            time.sleep(86400)
     except KeyboardInterrupt:
         server.stop(0)
 
