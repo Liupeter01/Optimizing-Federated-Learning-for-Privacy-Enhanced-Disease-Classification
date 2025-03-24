@@ -8,7 +8,7 @@ def handle_client_vector(vector, client_vectors, lock):
 
 # Check if Calculation's condition are satisfied
 def should_continue(client_vectors):
-    return len(client_vectors) >= 2
+    return len(client_vectors) > 2
 
 # FL Main Codes here
 def compute_average_vector(client_vectors):
