@@ -5,16 +5,17 @@ from concurrent import futures
 import queue
 import time
 import threading
+import traceback
 from interceptor import ClientCountInterceptor
 
-from logic import handle_client_vector, compute_average_vector, should_continue, broadcast_result
-
+from logic import compute_average_vector, should_continue, broadcast_result
 
 class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
     def __init__(self):
-        self.client_vectors = []  # Stores all received vectors
+        self.round_buffer = []  # Store vectors for current round
         self.client_queues = []   # One queue per client
         self.lock = threading.Lock()
+        self.round_id = 1
 
     def FederatedAveraging(self, request_iterator, context):
         response_queue = queue.Queue()
@@ -27,17 +28,24 @@ class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
         def listen_for_requests():
             try:
                 for request in request_iterator:
-                    handle_client_vector(request.vector, self.client_vectors, self.lock)
-
                     with self.lock:
-                        if should_continue(self.client_vectors):
-                            avg_vector = compute_average_vector(self.client_vectors)
+                        self.round_buffer.append(request.vector)
+                        print(f"[Server] Received vector: {request.vector}")
+
+                        if should_continue(self.round_buffer):
+                            avg_vector = compute_average_vector(self.round_buffer)
                             broadcast_result(avg_vector, self.client_queues)
-                            self.client_vectors.clear()
+                            print(f"[Server] ===== Round {self.round_id} completed =====")
+                            print(f"[Server] Aggregated average vector: {avg_vector}\n")
+                            self.round_buffer = []
+                            self.round_id += 1
                         else:
-                            print(f"[Server] Waiting for at least 2 vectors (currently {len(self.client_vectors)})")
+                            print(f"[Server] Waiting for at least 2 vectors (currently {len(self.round_buffer)})")
+            except grpc.RpcError:
+                print("[Server] Client stream closed.")
             except Exception as e:
-                print(f"[Server] Error in request stream: {e}")
+                traceback.print_exc()
+                print(f"[Server] Other error in request stream: {e}")
 
         threading.Thread(target=listen_for_requests, daemon=True).start()
 
@@ -51,7 +59,6 @@ class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
             with self.lock:
                 self.client_queues.remove(response_queue)
             print("[Server] Client disconnected.")
-
 
 def serve():
     server = grpc.server(
@@ -69,7 +76,6 @@ def serve():
             time.sleep(86400)
     except KeyboardInterrupt:
         server.stop(0)
-
 
 if __name__ == "__main__":
     serve()
