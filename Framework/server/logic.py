@@ -15,6 +15,7 @@ def compute_average_vector(client_vectors):
     if not client_vectors:
         return []
 
+    print(f"[Server] This round vectors: {client_vectors}")
     num_clients = len(client_vectors)
     vector_size = len(client_vectors[0])
     avg_vector = [
