@@ -22,8 +22,13 @@ def run():
     # Start the FederatedAveraging RPC call with bidirectional streaming
     response_iterator = stub.FederatedAveraging(generate_requests())
 
-    for response in response_iterator:
-        local_vector = handle_merged_vector(response.merged_vector, local_vector)
+    # Limit to 4 rounds of communication
+    for _ in range(4):
+        try:
+            response = next(response_iterator)
+            local_vector = handle_merged_vector(response.merged_vector, local_vector)
+        except StopIteration:
+            break
 
 if __name__ == "__main__":
     run()
