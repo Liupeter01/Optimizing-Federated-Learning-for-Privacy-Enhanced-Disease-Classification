@@ -10,13 +10,14 @@ send_queue = queue.Queue()
 import client_logic
 client_logic.send_queue = send_queue
 
+
 def run():
     channel = grpc.insecure_channel("localhost:50051")
     stub = ml_vector_pb2_grpc.MLServiceStub(channel)
 
     # Generate and enqueue initial vector
     local_vector = get_local_vector()
-    send_queue.put(local_vector)
+    send_queue.put(local_vector) 
 
     # Start the FederatedAveraging RPC call with bidirectional streaming
     response_iterator = stub.FederatedAveraging(generate_requests())

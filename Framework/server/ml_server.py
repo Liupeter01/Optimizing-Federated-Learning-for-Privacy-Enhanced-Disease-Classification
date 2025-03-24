@@ -5,9 +5,10 @@ from concurrent import futures
 import queue
 import time
 import threading
-from interceptor import ClientCountInterceptor 
+from interceptor import ClientCountInterceptor
 
 from logic import handle_client_vector, compute_average_vector, should_broadcast, broadcast_result
+
 
 class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
     def __init__(self):
@@ -51,12 +52,15 @@ class MLServiceServicer(ml_vector_pb2_grpc.MLServiceServicer):
                 self.client_queues.remove(response_queue)
             print("[Server] Client disconnected.")
 
+
 def serve():
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10),
         interceptors=[ClientCountInterceptor()]
     )
-    ml_vector_pb2_grpc.add_MLServiceServicer_to_server(MLServiceServicer(), server)
+
+    ml_vector_pb2_grpc.add_MLServiceServicer_to_server(
+        MLServiceServicer(), server)
     server.add_insecure_port("[::]:50051")
     server.start()
     print("Server started on port 50051")
@@ -65,6 +69,7 @@ def serve():
             time.sleep(86400)
     except KeyboardInterrupt:
         server.stop(0)
+
 
 if __name__ == "__main__":
     serve()
