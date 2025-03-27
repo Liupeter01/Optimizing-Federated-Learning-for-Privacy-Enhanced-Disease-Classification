@@ -1,2 +1,7 @@
 ﻿Framework/server/__pycache__/
 Framework/client/__pycache__/
+Framework/client/Group2/
+Framework/client/resnet18/__pycache__/
+Framework/client/output/
+Framework/client/*.csv
+Framework/client/*.png
