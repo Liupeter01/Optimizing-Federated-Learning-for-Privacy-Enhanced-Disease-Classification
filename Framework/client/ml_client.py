@@ -2,6 +2,7 @@ import grpc
 import threading
 import queue
 from client_logic import get_local_vector, handle_merged_vector, generate_requests
+from resnet18 import ml_resnet18 
 import ml_vector_pb2_grpc
 
 send_queue = queue.Queue()
@@ -10,6 +11,8 @@ send_queue = queue.Queue()
 import client_logic
 client_logic.send_queue = send_queue
 
+def handle_model():
+    ml_resnet18.resnet18("./Group2","./Group2_labels.csv","./output/group2","./train_group2_smart.csv")
 
 def run():
     channel = grpc.insecure_channel("localhost:50051")
@@ -31,4 +34,5 @@ def run():
             break
 
 if __name__ == "__main__":
-    run()
+    #run()
+    handle_model()
