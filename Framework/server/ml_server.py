@@ -6,7 +6,6 @@ import queue
 import threading
 import traceback
 import time
-from interceptor import ClientCountInterceptor
 from logic import compute_average_vector, should_continue, broadcast_result
 
 class MLService(ml_vector_pb2_grpc.MLServiceServicer):
@@ -39,7 +38,7 @@ class MLService(ml_vector_pb2_grpc.MLServiceServicer):
                         continue
                     
                     with self.lock:
-                        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Server] Received vector from Client {request.client_id}, Size: {len(request.vector)}")
+                        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Server] Received vector from Client {request.client_id}, Size: {len(request.vector)}, Vec: {request.vector[:10]} (First 10 elements)")
                         self.round_buffer.put(request.vector)
 
                         # Perform averaging
@@ -82,7 +81,6 @@ class MLService(ml_vector_pb2_grpc.MLServiceServicer):
 def run():
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10),
-        interceptors=[ClientCountInterceptor()],
         options=[
             ('grpc.max_send_message_length', 100 * 1024 * 1024),
             ('grpc.max_receive_message_length', 100 * 1024 * 1024)
