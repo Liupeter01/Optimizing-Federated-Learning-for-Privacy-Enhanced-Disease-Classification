@@ -2,14 +2,29 @@ import grpc
 import threading
 import queue
 import time
-from client_logic import get_local_vector, handle_merged_vector, generate_requests
+from client_logic import get_local_vector, handle_merged_vector
+import ml_vector_pb2
 import ml_vector_pb2_grpc
 import client_logic
+import queue
+import torch
+import warnings
 
 send_queue = queue.Queue()
 
-# Inject send_queue into logic module
-client_logic.send_queue = send_queue
+warnings.filterwarnings("ignore", category=FutureWarning, message=".*torch.load.*")
+
+def generate_requests(client_id, model_version="1.0.0"):
+    try:
+        while not send_queue.empty():
+            vector = send_queue.get()
+            if not vector:
+                print("[Client] Error: Retrieved an empty vector from the queue.")
+                continue
+            yield ml_vector_pb2.VectorRequest(client_id=client_id, vector=vector, model_version=model_version)
+            print(f"[Client] Sent vector from Client {client_id}, Version {model_version}, Size: {len(vector)}, Vec: {vector[:10]} (First 10 elements)")
+    except Exception as e:
+        print(f"[Client] Error in generate_requests(): {e}")
 
 def receive_responses(response_iterator, local_vector, max_rounds=4):
     for round_num in range(max_rounds):
@@ -37,6 +52,26 @@ def receive_responses(response_iterator, local_vector, max_rounds=4):
 def run(client_id, model_version="1.0.0", server_address="localhost:50051", max_rounds=4):
     client_id = str(client_id)
 
+    send_queue.queue.clear()
+
+    # Generate initial vector
+    try:
+        local_vector = get_local_vector()
+        if isinstance(local_vector, torch.Tensor):
+            local_vector = local_vector.detach().cpu().numpy().tolist()
+            print("[Client] Converted Tensor to list.")
+
+        if local_vector:
+            send_queue.put(local_vector)
+            print(f"[Client] Initial vector generated and sent to the queue.")
+        else:
+            print("[Client] Error: get_local_vector() returned empty data.")
+        
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Client] Initial vector Created.")
+    except Exception as e:
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Client] Error generating initial vector: {e}")
+        return
+
     try:
         # Establish the gRPC channel
         channel = grpc.insecure_channel(server_address)
@@ -44,17 +79,6 @@ def run(client_id, model_version="1.0.0", server_address="localhost:50051", max_
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Client] Connected to server.")
     except Exception as e:
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Client] Failed to connect to server: {e}")
-        return
-
-    send_queue.queue.clear()
-
-    # Generate initial vector
-    try:
-        local_vector = get_local_vector()
-        send_queue.put(local_vector)
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Client] Initial vector sent.")
-    except Exception as e:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Client] Error generating initial vector: {e}")
         return
 
     try:
