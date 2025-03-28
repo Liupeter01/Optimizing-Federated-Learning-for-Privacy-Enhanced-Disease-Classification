@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from collections import Counter
 
 # 提取每位患者所有标签（集合形式）
+
+
 def get_unique_labels(label_lists):
     unique = set()
     for label_group in label_lists:
@@ -13,6 +15,8 @@ def get_unique_labels(label_lists):
     return unique
 
 # === 智能划分函数（按图像总数）===
+
+
 def smart_split_by_image_count(patients_df, val_ratio=0.2, min_classes=15):
     patients = list(patients_df.itertuples(index=False, name="PatientRecord"))
     total_images = sum(len(p.Images) for p in patients)
@@ -45,9 +49,12 @@ def expand_patient_group(patient_group):
         pid = p.Patient_ID
         labels = p.Labels
         for i, img in enumerate(p.Images):
-            lbl = '|'.join(labels[i]) if isinstance(labels[i], list) else labels[i]
-            rows.append({'Image Index': img, 'Finding Labels': lbl, 'Patient ID': pid})
+            lbl = '|'.join(labels[i]) if isinstance(
+                labels[i], list) else labels[i]
+            rows.append(
+                {'Image Index': img, 'Finding Labels': lbl, 'Patient ID': pid})
     return pd.DataFrame(rows)
+
 
 def count_class_distribution(df):
     label_counter = Counter()
@@ -57,12 +64,15 @@ def count_class_distribution(df):
     return dict(label_counter)
 
 # === 多标签计数函数 ===
+
+
 def count_class_distribution(df):
     label_counter = Counter()
     for labels in df['Finding Labels']:
         for label in labels.split('|'):
             label_counter[label.strip()] += 1
     return dict(label_counter)
+
 
 def split(csv_path):
 
@@ -86,7 +96,8 @@ def split(csv_path):
     patient_df['Num_Images'] = patient_df['Images'].apply(len)
 
     # === Step 5: 执行划分和导出 ===
-    train_group, val_group = smart_split_by_image_count(patient_df, val_ratio=0.2)
+    train_group, val_group = smart_split_by_image_count(
+        patient_df, val_ratio=0.2)
     df_train = expand_patient_group(train_group)
     df_val = expand_patient_group(val_group)
 
@@ -126,8 +137,10 @@ def split(csv_path):
     x = range(len(all_labels))
     width = 0.4
 
-    plt.bar([i - width/2 for i in x], train_counts, width=width, label='Train', color='orange')
-    plt.bar([i + width/2 for i in x], val_counts, width=width, label='Validation', color='orangered')
+    plt.bar([i - width/2 for i in x], train_counts,
+            width=width, label='Train', color='orange')
+    plt.bar([i + width/2 for i in x], val_counts, width=width,
+            label='Validation', color='orangered')
 
     plt.xticks(x, all_labels, rotation=45, ha='right')
     plt.xlabel("Class")
