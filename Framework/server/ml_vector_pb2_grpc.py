@@ -26,7 +26,8 @@ if _version_not_supported:
 
 
 class MLServiceStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """Service for performing Federated Averaging
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -42,10 +43,12 @@ class MLServiceStub(object):
 
 
 class MLServiceServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """Service for performing Federated Averaging
+    """
 
     def FederatedAveraging(self, request_iterator, context):
-        """Missing associated documentation comment in .proto file."""
+        """Clients send vectors for aggregation, server returns aggregated result
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -67,7 +70,8 @@ def add_MLServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class MLService(object):
-    """Missing associated documentation comment in .proto file."""
+    """Service for performing Federated Averaging
+    """
 
     @staticmethod
     def FederatedAveraging(request_iterator,
