@@ -4,8 +4,9 @@ from resnet18 import ml_resnet18
 from dp import diffprivacy
 import torch
 import ml_vector_pb2_grpc
+#import queue
 
-send_queue = None  # Should be assigned externally by main client
+#send_queue = queue.Queue()  # Should be assigned externally by main client
 
 # This is the first model to be used in first iteration!!
 # Different Privacy is considered in this function
@@ -23,12 +24,6 @@ def get_local_vector():
 
 def merge_with_local(local_vector, merged_vector):
     return [(lv + mv) / 2 for lv, mv in zip(local_vector, merged_vector)]
-
-def generate_requests(client_id, model_version="1.0.0"):
-    while not send_queue.empty():
-        vector = send_queue.get()
-        yield ml_vector_pb2.VectorRequest(client_id=client_id, vector=vector, model_version=model_version)
-        print(f"Sent vector from Client {client_id}, Version {model_version}, Size: {len(vector)}")
 
 def handle_merged_vector(merged_vector, local_vector):
     # Simple averaging for demonstration: Update local vector with server result
