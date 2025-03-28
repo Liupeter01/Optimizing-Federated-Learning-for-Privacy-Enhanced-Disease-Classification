@@ -5,3 +5,7 @@ Framework/client/resnet18/__pycache__/
 Framework/client/output/
 Framework/client/*.csv
 Framework/client/*.png
+.vscode/settings.json
+Framework/client/dp/__pycache__/diffprivacy.cpython-312.pyc
+Framework/client/resnet18_custom_dp.pth
+Framework/client/best_resnet18_custom.pth
