@@ -1,4 +1,4 @@
-﻿import threading
+﻿import numpy as np
 
 # Handle Clients' Connections
 def handle_client_vector(vector, client_vectors, lock):
@@ -15,17 +15,18 @@ def compute_average_vector(client_vectors):
     if not client_vectors:
         return []
 
-    print(f"[Server] This round vectors: {client_vectors}")
-    num_clients = len(client_vectors)
-    vector_size = len(client_vectors[0])
-    avg_vector = [
-        sum(v[i] for v in client_vectors) / num_clients
-        for i in range(vector_size)
-    ]
-    print(f"[Server] Aggregated average vector: {avg_vector}")
+    print(f"[Server] This round vectors from {len(client_vectors)} clients.")
+    
+    # Convert to a NumPy array for efficient vectorized operations
+    vectors_array = np.array(client_vectors, dtype=np.float32)
+
+    # Compute the mean using NumPy (much faster for large data)
+    avg_vector = np.mean(vectors_array, axis=0).tolist()
+
+    print(f"[Server] Aggregated average vector (first 10 elements): {avg_vector[:10]}")
     return avg_vector
 
 def broadcast_result(avg_vector, client_queues):
-    for q in client_queues:
-        q.put(avg_vector)
+    for response_queue in client_queues:
+        response_queue.put(avg_vector)
     print(f"[Server] Broadcasted averaged vector to {len(client_queues)} clients.")
