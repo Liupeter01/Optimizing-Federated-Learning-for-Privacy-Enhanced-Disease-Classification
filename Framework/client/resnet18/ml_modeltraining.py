@@ -229,9 +229,14 @@ def plot_training_curves(history, save_path="training_curves.png"):
 # ================================
 # 7️⃣ 主流程 + 搜索空间定义
 # ================================
-def run_all(image_dir, csv_path, output_dir,  df_train_path):
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("mps" if torch.cuda.is_available() else "cpu")
+def run_all(image_dir, csv_path, output_dir, df_train_path, model_path):
+    print("CUDA Available:", torch.cuda.is_available())
+    print("Number of GPUs:", torch.cuda.device_count())
+    print("Current Device:", torch.cuda.current_device())
+    print("Device Name:", torch.cuda.get_device_name(torch.cuda.current_device()))
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("mps" if torch.cuda.is_available() else "cpu")
     full_df = pd.read_csv(df_train_path)
     class_list = sorted(set('|'.join(full_df['Finding Labels']).split('|')))
 
@@ -287,7 +292,7 @@ def run_all(image_dir, csv_path, output_dir,  df_train_path):
             best_config = config
             best_model_metrics = metrics
             best_history = history
-            torch.save(model.state_dict(), "best_resnet18_custom.pth")
+            torch.save(model.state_dict(), model_path)
             print("✅ 已保存当前最佳模型")
 
     df_result = pd.DataFrame(results)
