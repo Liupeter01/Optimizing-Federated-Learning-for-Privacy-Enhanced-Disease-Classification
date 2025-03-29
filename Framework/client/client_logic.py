@@ -15,14 +15,9 @@ import ml_vector_pb2_grpc
 def generate_initial_model(original_pth="./best_resnet18_custom.pth", dp_pth="./resnet18_custom_dp.pth"):
     # ml_resnet18.resnet18("./Group2","./Group2_labels.csv","./output/group2","./train_group2_smart.csv", original_pth)
 
-    # Apply differential privacy to the model
-    diffprivacy.apply_dp_to_pth(original_pth, dp_pth)
-    # Load the state_dict from the DP applied model
-    state_dict = torch.load(dp_pth)
-    # Convert state_dict to vector
-    model_vector = torch.cat([param.flatten()
-                             for param in state_dict.values()])
-    return model_vector
+    # Apply differential privacy and get the vector and JSON
+    model_vector, dp_params_json =  diffprivacy.apply_dp_to_pth(original_pth, dp_pth, epsilon=200, delta=1e-5)
+    return model_vector, dp_params_json
 
 
 def get_local_vector():
