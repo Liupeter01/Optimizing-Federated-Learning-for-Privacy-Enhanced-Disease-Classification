@@ -1,38 +1,38 @@
 ﻿import numpy as np
-
-# Handle Clients' Connections
-
-
-def handle_client_vector(vector, client_vectors, lock):
-    with lock:
-        client_vectors.append(vector)
-    print(f"[Server] Received vector: {vector}")
-
-# Check if Calculation's condition are satisfied
-
+import json
 
 def should_continue(client_vectors):
     return len(client_vectors) > 2
 
-# FL Main Codes here
-
-
-def compute_average_vector(client_vectors):
-    if not client_vectors:
+def compute_average_vector(client_data):
+    if not client_data:
         return []
 
-    print(f"[Server] This round vectors from {len(client_vectors)} clients.")
+    print(f"[Server] This round received data from {len(client_data)} clients.")
 
-    # Convert to a NumPy array for efficient vectorized operations
-    vectors_array = np.array(client_vectors, dtype=np.float32)
+    # Extract vectors and parse strengths from the DP parameter JSON
+    vectors = []
+    strengths = []
+    
+    for data in client_data:
+        vector = data[1]
+        try:
+            dp_params = json.loads(data[2])
+            strength = dp_params.get('strength', 0)
+        except json.JSONDecodeError as e:
+            print(f"[Server] Error decoding DP parameters for Client {data[0]}: {e}")
+            strength = 0
+        vectors.append(np.array(vector, dtype=np.float32))
+        strengths.append(strength)
 
-    # Compute the mean using NumPy (much faster for large data)
+    # Compute the average vector using NumPy
+    vectors_array = np.stack(vectors)
     avg_vector = np.mean(vectors_array, axis=0).tolist()
 
-    print(f"[Server] Aggregated average vector (first 10 elements): {
-          avg_vector[:10]}")
+    # Optionally display strengths
+    print(f"[Server] Aggregated average vector (first 10 elements): {avg_vector[:10]}")
+    print(f"[Server] Client strengths: {strengths}")
     return avg_vector
-
 
 def broadcast_result(avg_vector, client_queues):
     for response_queue in client_queues:
