@@ -8,7 +8,6 @@ import traceback
 import time
 from logic import compute_average_vector, should_continue, broadcast_result
 
-
 class MLService(ml_vector_pb2_grpc.MLServiceServicer):
     def __init__(self):
         self.client_data = {}
@@ -40,19 +39,18 @@ class MLService(ml_vector_pb2_grpc.MLServiceServicer):
                         continue
 
                     with self.lock:
-                        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Server] Received vector from Client {
-                              request.client_id}, Size: {len(request.vector)}, Vec: {request.vector[:10]} (First 10 elements)")
-                        self.round_buffer.put(request.vector)
+                        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Server] Received vector from Client {request.client_id}, Size: {len(request.vector)}, Vec: {request.vector[:10]} (First 10 elements)")
+                        self.round_buffer.put((request.client_id, request.vector, request.dp_params_list))
+
 
                         # Perform averaging
                         if should_continue(list(self.round_buffer.queue)):
-                            avg_vector = compute_average_vector(
-                                list(self.round_buffer.queue))
+                            avg_vector = compute_average_vector([(data[1], data[2]) for data in list(self.round_buffer.queue)])
                             broadcast_result(avg_vector, self.client_queues)
                             end_time = time.time()
-                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Server] Round {
+                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Server] Round { 
                                   self.round_id} completed in {end_time - start_time:.2f} seconds.")
-                            print(f"[Server] Aggregated average vector: {
+                            print(f"[Server] Aggregated average vector: { 
                                   avg_vector[:10]} (First 10 elements)\n")
 
                             with self.round_buffer.mutex:
@@ -104,7 +102,6 @@ def run():
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Server started on port 50051.")
     server.start()
     server.wait_for_termination()
-
 
 if __name__ == "__main__":
     run()
