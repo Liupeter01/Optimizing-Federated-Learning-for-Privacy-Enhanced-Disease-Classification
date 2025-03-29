@@ -10,9 +10,10 @@ service MLService {
 
 // Client sends vector data with metadata
 message VectorRequest {
-  string client_id = 1;      // Unique identifier for the client
-  repeated float vector = 2; // Vector data
-  string model_version = 3;  // Model version for compatibility
+  string client_id = 1;        // Unique identifier for the client
+  repeated float vector = 2;   // Vector data
+  string model_version = 3;    // Model version for compatibility
+  string dp_params_list = 4;   // Serialized DP parameters (JSON or string)
 }
 
 // Server responds with aggregated vector or error information
