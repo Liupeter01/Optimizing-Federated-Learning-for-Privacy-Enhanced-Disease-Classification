@@ -23,13 +23,14 @@ def generate_requests(client_id, model_version="1.0.0"):
             data = send_queue.get()
             vector = data.get("vector", [])
             dp_params_list = data.get("dp_params_json", [])
-            
+
             if not vector:
                 print("[Client] Error: Retrieved an empty vector from the queue.")
                 continue
             yield ml_vector_pb2.VectorRequest(client_id=client_id, vector=vector, model_version=model_version, dp_params_list=str(dp_params_list))
-            print(f"[Client] Sent vector from Client {client_id}, Version {model_version}, Size: {len(vector)}, Vec: {vector[:10]} (First 10 elements), DP Params: {dp_params_list}")
-    
+            print(f"[Client] Sent vector from Client {client_id}, Version {model_version}, Size: {
+                  len(vector)}, Vec: {vector[:10]} (First 10 elements), DP Params: {dp_params_list}")
+
     except Exception as e:
         print(f"[Client] Error in generate_requests(): {e}")
 
@@ -72,26 +73,30 @@ def run(client_id, model_version="1.0.0", server_address="localhost:50051", max_
     try:
         # Generate vector and differential privacy parameters
         local_vector, dp_params_list = get_local_vector()
-        
+
         # Convert vector to list if it's a tensor
         if isinstance(local_vector, torch.Tensor):
             local_vector = local_vector.detach().cpu().numpy().tolist()
             print("[Client] Converted Tensor to list.")
-        
+
         # Convert dp_params_list to JSON
         dp_params_json = json.dumps(dp_params_list)
-        
+
         # Check if vector exists
         if local_vector:
             # Send vector, strength, and DP params as JSON
-            send_queue.put({"vector": local_vector, "dp_params_json": dp_params_json})
-            print(f"[Client] Initial vector generated and sent to the queue with DP Params.")
+            send_queue.put(
+                {"vector": local_vector, "dp_params_json": dp_params_json})
+            print(
+                f"[Client] Initial vector generated and sent to the queue with DP Params.")
         else:
             print("[Client] Error: get_local_vector() returned empty data.")
 
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Client] Initial vector Created.")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')
+                  }] [Client] Initial vector Created.")
     except Exception as e:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Client] Error generating initial vector: {e}")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')
+                  }] [Client] Error generating initial vector: {e}")
         return
 
     try:
