@@ -5,6 +5,7 @@ from torchvision import transforms
 import torch
 from tqdm import tqdm
 
+
 def preprocess_image(image_dir, csv_path, output_dir, df_train_path):
 
     df_train = pd.read_csv(df_train_path)
@@ -39,7 +40,8 @@ def preprocess_image(image_dir, csv_path, output_dir, df_train_path):
 
     for img_name in tqdm(image_names[:1000], desc="统计 mean/std"):
         img_path = os.path.join(image_dir, img_name)
-        if not os.path.exists(img_path): continue
+        if not os.path.exists(img_path):
+            continue
 
         try:
             img = Image.open(img_path).convert('L')
@@ -67,12 +69,14 @@ def preprocess_image(image_dir, csv_path, output_dir, df_train_path):
     # ========== 开始转换并保存 ==========
     for img_name in tqdm(image_names, desc="预处理并保存图像"):
         img_path = os.path.join(image_dir, img_name)
-        if not os.path.exists(img_path): continue
+        if not os.path.exists(img_path):
+            continue
 
         try:
             img = Image.open(img_path).convert('L')
             tensor = final_transform(img)  # [3, 224, 224]
-            torch.save(tensor, os.path.join(output_dir, img_name.replace('.png', '.pt')))
+            torch.save(tensor, os.path.join(
+                output_dir, img_name.replace('.png', '.pt')))
         except Exception as e:
             print(f"❌ 处理失败: {img_name} → {e}")
 

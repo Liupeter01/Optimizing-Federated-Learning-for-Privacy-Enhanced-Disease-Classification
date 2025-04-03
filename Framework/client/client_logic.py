@@ -16,7 +16,8 @@ def generate_initial_model(original_pth="./best_resnet18_custom.pth", dp_pth="./
     # ml_resnet18.resnet18("./Group2","./Group2_labels.csv","./output/group2","./train_group2_smart.csv", original_pth)
 
     # Apply differential privacy and get the vector and JSON
-    model_vector, dp_params_json =  diffprivacy.apply_dp_to_pth(original_pth, dp_pth, epsilon=200, delta=1e-5)
+    model_vector, dp_params_json = diffprivacy.apply_dp_to_pth(
+        original_pth, dp_pth, epsilon=200, delta=1e-5)
     return model_vector, dp_params_json
 
 

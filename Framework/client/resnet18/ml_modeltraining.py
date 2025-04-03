@@ -17,6 +17,8 @@ from torchvision.models import resnet18, ResNet18_Weights
 # ================================
 # 0️⃣ 统计小类（排除前8类）
 # ================================
+
+
 def get_top_k_classes(df, k=8):
     all_labels = []
     for labels in df['Finding Labels']:
@@ -28,6 +30,8 @@ def get_top_k_classes(df, k=8):
 # ================================
 # 1️⃣ Dataset 类：仅增强小类图像
 # ================================
+
+
 class ChestXrayDataset(Dataset):
     def __init__(self, df, image_dir, class_list, augmentation='light', top_classes=None):
         self.df = df.reset_index(drop=True)
@@ -73,12 +77,15 @@ class ChestXrayDataset(Dataset):
 # ================================
 # 2️⃣ 数据划分：确保ID不重复 + 类别全覆盖
 # ================================
+
+
 def has_all_classes(df, class_list):
     present_classes = set()
     for labels in df['Finding Labels']:
         for label in labels.split('|'):
             present_classes.add(label.strip())
     return all(cls in present_classes for cls in class_list)
+
 
 def split_train_eval(df, class_list, test_ratio=0.2, seed=42, max_tries=100):
     random.seed(seed)
@@ -101,6 +108,8 @@ def split_train_eval(df, class_list, test_ratio=0.2, seed=42, max_tries=100):
 # ================================
 # Focal Loss 实现（支持多标签）
 # ================================
+
+
 class FocalLoss(nn.Module):
     def __init__(self, gamma=2.0, reduction='mean'):
         super(FocalLoss, self).__init__()
@@ -122,11 +131,14 @@ class FocalLoss(nn.Module):
 # ================================
 # 3️⃣ 模型构建函数：加入隐藏层大小可调
 # ================================
+
+
 def create_model(num_classes, dropout, fc_hidden_size, kernel_size, num_blocks):
-    
+
     model = resnet18(weights=ResNet18_Weights.DEFAULT)
     model.layer4 = model.layer4[:num_blocks]
-    model.conv1 = nn.Conv2d(3, 64, kernel_size=kernel_size, stride=2, padding=kernel_size//2, bias=False)
+    model.conv1 = nn.Conv2d(3, 64, kernel_size=kernel_size,
+                            stride=2, padding=kernel_size//2, bias=False)
     model.fc = nn.Sequential(
         nn.Dropout(dropout),
         nn.Linear(512, fc_hidden_size),
@@ -138,6 +150,8 @@ def create_model(num_classes, dropout, fc_hidden_size, kernel_size, num_blocks):
 # ================================
 # 4️⃣ 优化器构建（含 weight_decay）
 # ================================
+
+
 def get_optimizer(opt_name, model, lr, weight_decay):
     if opt_name == 'adam':
         return torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -147,6 +161,8 @@ def get_optimizer(opt_name, model, lr, weight_decay):
 # ================================
 # 5️⃣ 训练 + 验证（早停 + 可视化）
 # ================================
+
+
 def train_and_validate(model, train_loader, val_loader, optimizer, criterion, device, early_stop=5):
     best_f1 = 0
     no_improve = 0
@@ -180,7 +196,8 @@ def train_and_validate(model, train_loader, val_loader, optimizer, criterion, de
         y_pred = torch.cat(all_preds, dim=0).numpy()
 
         f1 = f1_score(y_true, y_pred, average='micro')
-        precision = precision_score(y_true, y_pred, average='micro', zero_division=0)
+        precision = precision_score(
+            y_true, y_pred, average='micro', zero_division=0)
         recall = recall_score(y_true, y_pred, average='micro', zero_division=0)
 
         history['f1'].append(f1)
@@ -188,7 +205,8 @@ def train_and_validate(model, train_loader, val_loader, optimizer, criterion, de
         history['recall'].append(recall)
         history['loss'].append(val_loss / len(val_loader))
 
-        print(f"Epoch {epoch+1} | F1: {f1:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f}")
+        print(f"Epoch {
+              epoch+1} | F1: {f1:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f}")
 
         if f1 > best_f1:
             best_f1 = f1
@@ -205,6 +223,8 @@ def train_and_validate(model, train_loader, val_loader, optimizer, criterion, de
 # ================================
 # 6️⃣ 可视化训练曲线
 # ================================
+
+
 def plot_training_curves(history, save_path="training_curves.png"):
     plt.figure(figsize=(10, 5))
     plt.subplot(1, 2, 1)
@@ -229,6 +249,8 @@ def plot_training_curves(history, save_path="training_curves.png"):
 # ================================
 # 7️⃣ 主流程 + 搜索空间定义
 # ================================
+
+
 def run_all(image_dir, csv_path, output_dir, df_train_path, model_path):
     print("CUDA Available:", torch.cuda.is_available())
     print("Number of GPUs:", torch.cuda.device_count())
@@ -236,11 +258,12 @@ def run_all(image_dir, csv_path, output_dir, df_train_path, model_path):
     print("Device Name:", torch.cuda.get_device_name(torch.cuda.current_device()))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #device = torch.device("mps" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("mps" if torch.cuda.is_available() else "cpu")
     full_df = pd.read_csv(df_train_path)
     class_list = sorted(set('|'.join(full_df['Finding Labels']).split('|')))
 
-    train_df, temp_eval_df = split_train_eval(full_df, class_list, test_ratio=0.2)
+    train_df, temp_eval_df = split_train_eval(
+        full_df, class_list, test_ratio=0.2)
     top_classes = get_top_k_classes(train_df, k=8)
 
     search_space = {
@@ -269,21 +292,27 @@ def run_all(image_dir, csv_path, output_dir, df_train_path, model_path):
     for config in all_combinations:
         print(f"\n🚀 正在训练配置: {config}")
 
-        model = create_model(len(class_list), config['dropout'], config['fc_hidden_size'], config['kernel_size'], config['num_blocks']).to(device)
-        optimizer = get_optimizer(config['optimizer'], model, config['lr'], config['weight_decay'])
-        #criterion = nn.BCEWithLogitsLoss()
+        model = create_model(len(
+            class_list), config['dropout'], config['fc_hidden_size'], config['kernel_size'], config['num_blocks']).to(device)
+        optimizer = get_optimizer(
+            config['optimizer'], model, config['lr'], config['weight_decay'])
+        # criterion = nn.BCEWithLogitsLoss()
         if config['loss_type'] == 'focal':
             criterion = FocalLoss(gamma=config['gamma'])
         else:
             criterion = nn.BCEWithLogitsLoss()
 
-        train_dataset = ChestXrayDataset(train_df, output_dir, class_list, augmentation=config['augmentation'], top_classes=top_classes)
-        val_dataset = ChestXrayDataset(temp_eval_df, output_dir, class_list, augmentation='none')
+        train_dataset = ChestXrayDataset(
+            train_df, output_dir, class_list, augmentation=config['augmentation'], top_classes=top_classes)
+        val_dataset = ChestXrayDataset(
+            temp_eval_df, output_dir, class_list, augmentation='none')
 
-        train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True)
+        train_loader = DataLoader(
+            train_dataset, batch_size=config['batch_size'], shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=config['batch_size'])
 
-        metrics, history = train_and_validate(model, train_loader, val_loader, optimizer, criterion, device)
+        metrics, history = train_and_validate(
+            model, train_loader, val_loader, optimizer, criterion, device)
         row = {**config, **metrics}
         results.append(row)
 
