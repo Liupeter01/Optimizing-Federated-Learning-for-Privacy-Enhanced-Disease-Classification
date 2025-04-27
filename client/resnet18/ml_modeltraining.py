@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 from torchvision.models import resnet18
 from tqdm import tqdm
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
 from itertools import product
 import numpy as np
 import random
@@ -16,11 +16,7 @@ from torchvision.models import resnet18, ResNet18_Weights
 import torch.optim as optim
 from opacus import PrivacyEngine
 from opacus.validators import ModuleValidator
-
-# ================================
-# 0️⃣ 统计小类（排除前8类）
-# ================================
-
+import json
 
 def get_top_k_classes(df, k=8):
     all_labels = []
@@ -33,8 +29,6 @@ def get_top_k_classes(df, k=8):
 # ================================
 # 1️⃣ Dataset 类：仅增强小类图像
 # ================================
-
-
 class ChestXrayDataset(Dataset):
     def __init__(self, df, image_dir, class_list, augmentation='light', top_classes=None):
         self.df = df.reset_index(drop=True)
@@ -108,11 +102,6 @@ def split_train_eval(df, class_list, test_ratio=0.2, seed=42, max_tries=100):
 
     raise ValueError("无法在 max_tries 次随机中找到满足所有类别覆盖的训练/测试集划分")
 
-# ================================
-# Focal Loss 实现（支持多标签）
-# ================================
-
-
 class FocalLoss(nn.Module):
     def __init__(self, gamma=2.0, reduction='mean'):
         super(FocalLoss, self).__init__()
@@ -130,12 +119,7 @@ class FocalLoss(nn.Module):
             return focal_loss.sum()
         else:
             return focal_loss
-
-# ================================
-# 3️⃣ 模型构建函数：加入隐藏层大小可调
-# ================================
-
-
+        
 def create_model(num_classes, dropout, fc_hidden_size, kernel_size, num_blocks):
 
     model = resnet18(weights=ResNet18_Weights.DEFAULT)
@@ -149,16 +133,10 @@ def create_model(num_classes, dropout, fc_hidden_size, kernel_size, num_blocks):
         nn.Linear(fc_hidden_size, num_classes)
     )
 
-    # ✅ 自动替换所有 BatchNorm 为 GroupNorm
     model = ModuleValidator.fix(model)
     ModuleValidator.validate(model, strict=False)
 
     return model
-
-# ================================
-# 4️⃣ 优化器构建（含 weight_decay）
-# ================================
-
 
 def get_optimizer(opt_name, model, lr, weight_decay):
     if opt_name == 'adam':
@@ -166,18 +144,13 @@ def get_optimizer(opt_name, model, lr, weight_decay):
     elif opt_name == 'sgd':
         return torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
 
-# ================================
-# 5️⃣ 训练 + 验证（早停 + 可视化）
-# ================================
-
-
 def train_and_validate(model, train_loader, val_loader, optimizer, criterion, device, early_stop=5):
     best_f1 = 0
     no_improve = 0
     best_metrics = {}
-    history = {'f1': [], 'precision': [], 'recall': [], 'loss': []}
+    history = {'f1': [], 'acc': [], 'loss': [],'recall': []}
 
-    for epoch in range(100):
+    for epoch in range( early_stop):
         model.train()
         for imgs, labels in train_loader:
             imgs, labels = imgs.to(device), labels.to(device)
@@ -188,7 +161,7 @@ def train_and_validate(model, train_loader, val_loader, optimizer, criterion, de
             optimizer.step()
 
         model.eval()
-        all_preds, all_labels = [], []
+        all_preds, all_labels, all_probs = [], [], []
         val_loss = 0
         with torch.no_grad():
             for imgs, labels in val_loader:
@@ -199,26 +172,31 @@ def train_and_validate(model, train_loader, val_loader, optimizer, criterion, de
                 preds = (probs > 0.5).float().cpu()
                 all_preds.append(preds)
                 all_labels.append(labels.cpu())
+                all_probs.append(probs.cpu())
+
 
         y_true = torch.cat(all_labels, dim=0).numpy()
         y_pred = torch.cat(all_preds, dim=0).numpy()
+        y_prob = torch.cat(all_probs, dim=0)
 
         f1 = f1_score(y_true, y_pred, average='micro')
         precision = precision_score(
             y_true, y_pred, average='micro', zero_division=0)
         recall = recall_score(y_true, y_pred, average='micro', zero_division=0)
+        soft_acc = ((y_prob - torch.cat(all_labels, dim=0)).abs() < 0.5).float().mean().item()
 
         history['f1'].append(f1)
-        history['precision'].append(precision)
+        #history['precision'].append(precision)
         history['recall'].append(recall)
-        history['loss'].append(val_loss / len(val_loader))
+        #history['loss'].append(val_loss / len(val_loader))
+        history['acc'].append(soft_acc)
 
         print(f"Epoch {
-              epoch+1} | F1: {f1:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f}")
+              epoch+1} | F1: {f1:.4f} | Acc: {soft_acc:.4f} | Recall: {recall:.4f}")
 
         if f1 > best_f1:
             best_f1 = f1
-            best_metrics = {'f1': f1, 'precision': precision, 'recall': recall}
+            best_metrics = {'f1': f1, 'acc': soft_acc, 'recall': recall}
             no_improve = 0
         else:
             no_improve += 1
@@ -228,38 +206,8 @@ def train_and_validate(model, train_loader, val_loader, optimizer, criterion, de
 
     return best_metrics, history
 
-# ================================
-# 6️⃣ 可视化训练曲线
-# ================================
 
-
-def plot_training_curves(history, save_path="training_curves.png"):
-    plt.figure(figsize=(10, 5))
-    plt.subplot(1, 2, 1)
-    plt.plot(history['f1'], label='F1')
-    plt.plot(history['precision'], label='Precision')
-    plt.xlabel('Epoch')
-    plt.ylabel('Score')
-    plt.title('F1 / Precision ')
-    plt.legend()
-
-    plt.subplot(1, 2, 2)
-    plt.plot(history['loss'], label='Val Loss', color='orange')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Loss')
-    plt.legend()
-
-    plt.tight_layout()
-    plt.savefig(save_path)
-    print(f"📈 训练曲线保存为：{save_path}")
-
-# ================================
-# 7️⃣ 主流程 + 搜索空间定义
-# ================================
-
-
-def run_all(image_dir, csv_path, output_dir, df_train_path, model_path):
+def run_all(csv_path, output_dir, df_train_path, model_path):
     # print("CUDA Available:", torch.cuda.is_available())
     # print("Number of GPUs:", torch.cuda.device_count())
     # print("Current Device:", torch.cuda.current_device())
@@ -273,20 +221,21 @@ def run_all(image_dir, csv_path, output_dir, df_train_path, model_path):
 
     train_df, temp_eval_df = split_train_eval(
         full_df, class_list, test_ratio=0.2)
-    top_classes = get_top_k_classes(train_df, k=8)
+    top_classes = get_top_k_classes(train_df, k=3)
+    class_list = top_classes
 
     search_space = {
-        'dropout': [0.4],
-        'lr': [0.00015],
-        'batch_size': [100],
+        'dropout': [0.3],
+        'lr': [0.0006],
+        'batch_size': [128],
         'optimizer': ['adam'],
-        'kernel_size': [4],
+        'kernel_size': [3],
         'num_blocks': [2],
-        'fc_hidden_size': [515],
-        'weight_decay': [0.0008],
-        'augmentation': ['strong'],
-        'loss_type': ['bce', 'focal'],  # 🔸 新增 loss 类型
-        'gamma': [2.0]  # 🔸 focal loss 的强度
+        'fc_hidden_size': [1024],
+        'weight_decay': [0.0005],
+        'augmentation': ['light'],
+        'loss_type': ['focal'], 
+        'gamma': [1.5]  
     }
 
     keys, values = zip(*search_space.items())
@@ -339,40 +288,8 @@ def run_all(image_dir, csv_path, output_dir, df_train_path, model_path):
     print("🥇 最佳配置:", best_config)
     print("📊 指标:", best_model_metrics)
 
-    if best_history:
-        plot_training_curves(best_history)
-
-def check_data_health(train_loader, val_loader, model, criterion, device):
-    print("\n📊 [Check] 正在分析数据和模型输出...\n")
-
-    # Step 1: 检查训练标签分布
-    total_labels = 0
-    positive_labels = 0
-    for i, (_, labels) in enumerate(train_loader):
-        total_labels += labels.numel()
-        positive_labels += labels.sum().item()
-        if i == 0:
-            print("🧪 训练集中前几个标签:")
-            print(labels[:3])
-    print(f"✅ 训练标签中正样本比例: {positive_labels / total_labels:.4f}")
-
-    # Step 2: 检查验证标签分布 & 模型输出范围
-    model.eval()
-    with torch.no_grad():
-        for i, (imgs, labels) in enumerate(val_loader):
-            imgs = imgs.to(device)
-            outputs = model(imgs)
-            probs = torch.sigmoid(outputs)
-            print("🔍 验证集 Sigmoid 输出 - mean:", probs.mean().item(),
-                  "max:", probs.max().item(), "min:", probs.min().item())
-
-            print("🧪 验证集前几个标签:")
-            print(labels[:3])
-            print("🎯 预测是否大于0.5:", (probs[:3] > 0.5).float())
-            break  # 只看一批次
-    print("\n✅ [Check] 完成。\n")
-
 def train_and_validate_with_dp(model, train_loader, val_loader, optimizer, criterion, config, device, early_stop=5):
+    from opacus import PrivacyEngine
     privacy_engine = PrivacyEngine(
         secure_mode=config.get("secure_mode", False)
     )
@@ -387,9 +304,9 @@ def train_and_validate_with_dp(model, train_loader, val_loader, optimizer, crite
     best_f1 = 0
     no_improve = 0
     best_metrics = {}
-    history = {'f1': [], 'precision': [], 'recall': [], 'loss': [], 'soft_acc': []}
+    history = {'f1': [], 'precision': [], 'recall': [], 'loss': [], 'soft_acc': [], 'epsilon': []}
 
-    for epoch in range(100):
+    for epoch in range(early_stop):
         model.train()
         for imgs, labels in train_loader:
             imgs, labels = imgs.to(device), labels.to(device)
@@ -421,130 +338,68 @@ def train_and_validate_with_dp(model, train_loader, val_loader, optimizer, crite
         recall = recall_score(y_true, y_pred, average='micro', zero_division=0)
         soft_acc = ((torch.cat(all_preds, dim=0) - torch.cat(all_labels, dim=0)).abs() < 0.5).float().mean().item()
 
+        try:
+            epsilon = privacy_engine.get_epsilon(delta=1e-5)
+        except Exception:
+            epsilon = -1
+
         history['f1'].append(f1)
         history['precision'].append(precision)
         history['recall'].append(recall)
         history['loss'].append(val_loss / len(val_loader))
         history['soft_acc'].append(soft_acc)
+        history['epsilon'].append(epsilon)
 
-        print(f"[DP Train] Epoch {epoch+1} | F1: {f1:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f} | Soft Acc: {soft_acc:.4f}")
-
-        if f1 > best_f1:
-            best_f1 = f1
-            best_metrics = {'f1': f1, 'precision': precision, 'recall': recall, 'soft_acc': soft_acc}
-            no_improve = 0
-        else:
-            no_improve += 1
-            if no_improve >= early_stop:
-                print("⏹️ DP 训练触发早停！")
-                break
+        print(f"[DP Train] Epoch {epoch+1} | F1: {f1:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f} | Soft Acc: {soft_acc:.4f} | ε: {epsilon:.4f}")
 
     return best_metrics, history
 
 def run_all_with_dp(csv_path, output_dir, df_train_path, model_path, config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #device = torch.device(
-    #    "mps" if torch.backends.mps.is_available() else "cpu")
+
     full_df = pd.read_csv(df_train_path)
     class_list = sorted(set('|'.join(full_df['Finding Labels']).split('|')))
-
-    train_df, temp_eval_df = split_train_eval(
-        full_df, class_list, test_ratio=0.2)
+    train_df, temp_eval_df = split_train_eval(full_df, class_list, test_ratio=0.2)
     top_classes = get_top_k_classes(train_df, k=8)
 
-    search_space = {
-        'noise_multiplier': [1e-6],     # ✅ 添加默认 DP 参数
-        'max_grad_norm': [999] ,        # ✅ 添加默认 DP 参数
-         'secure_mode': [False],            # 实验阶段不用开
-        'dropout': [0.5],
-        'lr': [0.0005],
-        'batch_size': [128],
-        'optimizer': ['adam'],
-        'kernel_size': [3],
-        'num_blocks': [2],
-        'fc_hidden_size': [515],
-        'weight_decay': [1e-4],
-        'augmentation': ['light'],
-        'loss_type': ['bce'],
-        'gamma': [1.0]
-    }
+    model = create_model(
+        num_classes=len(class_list),
+        dropout=config['dropout'],
+        fc_hidden_size=config['fc_hidden_size'],
+        kernel_size=config['kernel_size'],
+        num_blocks=config['num_blocks']
+    ).to(device)
 
-    keys, values = zip(*search_space.items())
-    all_combinations = [dict(zip(keys, v)) for v in product(*values)]
+    optimizer = get_optimizer(
+        config['optimizer'], model, config['lr'], config['weight_decay']
+    )
 
-    results = []
-    best_model_metrics = None
-    best_config = None
-    best_f1 = 0
-    best_history = None
+    criterion = FocalLoss(gamma=config['gamma']) if config['loss_type'] == 'focal' else nn.BCEWithLogitsLoss()
 
-    for config in all_combinations:
-        print(f"\n🚀 正在训练配置: {config}")
+    train_dataset = ChestXrayDataset(train_df, output_dir, class_list, augmentation=config['augmentation'], top_classes=top_classes)
+    val_dataset = ChestXrayDataset(temp_eval_df, output_dir, class_list, augmentation='none')
 
-        model = create_model(len(
-            class_list), config['dropout'], config['fc_hidden_size'], config['kernel_size'], config['num_blocks']).to(device)
-        optimizer = get_optimizer(
-            config['optimizer'], model, config['lr'], config['weight_decay'])
-        # criterion = nn.BCEWithLogitsLoss()
-        if config['loss_type'] == 'focal':
-            criterion = FocalLoss(gamma=config['gamma'])
-        else:
-            criterion = nn.BCEWithLogitsLoss()
+    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=config['batch_size'])
 
-        train_dataset = ChestXrayDataset(
-            train_df, output_dir, class_list, augmentation=config['augmentation'], top_classes=top_classes)
-        val_dataset = ChestXrayDataset(
-            temp_eval_df, output_dir, class_list, augmentation='none')
+    metrics, history = train_and_validate_with_dp(
+        model, train_loader, val_loader, optimizer, criterion, config, device
+    )
 
-        train_loader = DataLoader(
-            train_dataset, batch_size=config['batch_size'], shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=config['batch_size'])
+    torch.save(model.state_dict(), model_path)
 
-        privacy_engine = PrivacyEngine()
-        model, optimizer, train_loader = privacy_engine.make_private(
-            module=model,
-            optimizer=optimizer,
-            data_loader=train_loader,
-            noise_multiplier=config['noise_multiplier'],
-            max_grad_norm=config['max_grad_norm'],
-        )
-
-        metrics, history = train_and_validate_with_dp(
-            model, train_loader, val_loader, optimizer, criterion, config, device)
-        row = {**config, **metrics}
-        results.append(row)
-
-        if metrics['f1'] > best_f1:
-            best_f1 = metrics['f1']
-            best_config = config
-            best_model_metrics = metrics
-            best_history = history
-            torch.save(model.state_dict(), model_path)
-            print("✅ 已保存当前最佳模型")
-
-    df_result = pd.DataFrame(results)
-    df_result.to_csv("grid_search_results.csv", index=False)
-    print("\n🏁 所有训练完成！")
-    print("🥇 最佳配置:", best_config)
-    print("📊 指标:", best_model_metrics)
-
-    #if best_history:
-    #    plot_training_curves(best_history)
     final_state_dict = torch.load(model_path)
     vector = torch.cat([
         v.flatten() for v in final_state_dict.values()
         if torch.is_floating_point(v)
     ])
 
-    # ✅ 获取最终 ε
-    epsilon = privacy_engine.get_epsilon(delta=1e-5)
     dp_params = {
-        'epsilon': epsilon,
+        'epsilon': metrics.get('epsilon', 0.0),
         'delta': 1e-5,
-        'noise_multiplier': best_config.get('noise_multiplier', 1.0),
-        'max_grad_norm': best_config.get('max_grad_norm', 1.0)
+        'noise_multiplier': config.get('noise_multiplier', 1.0),
+        'max_grad_norm': config.get('max_grad_norm', 1.0)
     }
 
-    print(f"📤 最佳模型 ε = {epsilon:.2f}，向量维度 = {len(vector)}")
-
+    print(f"📤 ε = {metrics.get('epsilon', 0.0):.2f}，向量维度 = {len(vector)}")
     return vector.cpu().tolist(), json.dumps(dp_params)
