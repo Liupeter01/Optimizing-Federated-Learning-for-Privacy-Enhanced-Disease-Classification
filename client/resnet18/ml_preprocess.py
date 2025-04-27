@@ -10,7 +10,7 @@ def preprocess_image(image_dir, csv_path, output_dir, df_train_path):
 
     df_train = pd.read_csv(df_train_path)
 
-    sample_img_path = os.path.join(image_dir, df_train['Image Index'].iloc[0])
+    sample_img_path = os.path.join(image_dir, df_train['Image Index'].iloc[0].strip())
     img = Image.open(sample_img_path)
 
     # 输出图像属性
