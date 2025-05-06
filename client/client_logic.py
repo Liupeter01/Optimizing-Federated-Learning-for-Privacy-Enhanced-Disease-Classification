@@ -7,6 +7,28 @@ import torch
 import ml_vector_pb2_grpc
 # import queue
 
+def save_fednorm_json(model, save_path):
+    model_dict = model.state_dict()
+    json_data = {}
+
+    l2_terms = [v.norm(2) ** 2 for v in model_dict.values()
+                if torch.is_floating_point(v)]
+    total_norm = torch.sqrt(torch.sum(torch.stack(l2_terms)))
+
+    for k, v in model_dict.items():
+        if torch.is_floating_point(v):
+            val = (v / total_norm).detach().cpu()
+            json_data[k] = val.tolist() if val.dim() > 0 else [val.item()]
+
+    # Save to JSON
+    with open(save_path, "w") as f:
+        json.dump({
+            "round": 0,
+            "normalized_weights": json_data,
+            "norm_value": total_norm.item()
+        }, f, indent=2)
+
+
 def generate_initial_model(group_name="Group1_iid", config=None):
     return ml_resnet18.resnet18(
         f"./{group_name}_labels.csv",
