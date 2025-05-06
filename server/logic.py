@@ -18,6 +18,16 @@ def load_fednorm_json(json_path, device=torch.device("cpu")):
     return weights
 
 
+def fed_norm(state_dict):
+    l2_terms = [v.norm(2) ** 2 for v in state_dict.values()
+                       if torch.is_floating_point(v)]
+    total_norm = torch.sqrt(torch.sum(torch.stack(l2_terms)))
+    normed_state = {
+        k: (v / total_norm) for k, v in state_dict.items() if torch.is_floating_point(v)
+    }
+    return normed_state, total_norm.item()
+
+
 # def parse_client_data(client_data):
 #     vectors = []
 #     strengths = []
