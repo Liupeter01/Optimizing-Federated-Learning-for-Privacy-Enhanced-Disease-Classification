@@ -6,6 +6,18 @@ def should_continue(client_vectors):
     return len(client_vectors) > 2
 
 
+def load_fednorm_json(json_path, device=torch.device("cpu")):
+    with open(json_path, "r") as f:
+        data = json.load(f)
+
+    weights = {}
+    for k, v in data["normalized_weights"].items():
+        t = torch.tensor(v, dtype=torch.float32).to(device)
+        weights[k] = t * data["norm_value"]
+
+    return weights
+
+
 # def parse_client_data(client_data):
 #     vectors = []
 #     strengths = []
